@@ -19,8 +19,55 @@
 #define CHA "-c" // Count characters only
 
 // Outputs
-#define ALLCOUNT    "lines: %d\nwords: %d\nchars: %d\n"
-#define OPTIONAL    "%d\n"
+#define ALLCOUNT    "lines: %zu\nwords: %zu\nchars: %zu\n"
+#define OPTIONAL    "%zu\n"
+
+ssize_t count_lines(char *buf, size_t nread)
+{   
+    ssize_t nlines = 0;
+
+    if (buf[nread-1] == '\n')
+        ++nlines;
+    
+    return nlines;
+}
+
+ssize_t count_chars(char *buf, size_t nread)
+{
+    ssize_t nchars = 0;
+
+    int i;
+    for (i = 0; i < nread; ++i)
+    {
+        if (buf[i] != '\0')
+            ++nchars;
+    }
+
+    return nchars;
+}
+
+ssize_t count_words(char *buf, size_t nread)
+{
+    ssize_t nwords = 0;
+    int inword = 0;
+
+    for (int i = 0; i <= nread; ++i)
+    {
+        int curr = buf[i];
+        if ((curr >= 65 && curr <= 90) || (curr >= 97 && curr <= 222))
+        {
+            if (!inword) inword = 1;
+        }
+        else
+        {
+            if (inword) ++nwords;
+            inword = 0;
+        }
+    }
+
+    return nwords;
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -72,61 +119,61 @@ int main(int argc, char *argv[])
     }
     
     // char, line and word count
-    int c, l, w = 0;
-    int cc = 0;
-    
+    ssize_t nlines, nwords, nchars = 0;
+    size_t linelen;
+    size_t size = 0;
     char *buf = NULL;
-    size_t s = 0;
 
-    // get initial line
-    cc = getline(&buf, &s, stream);
-
-    // arr for por ptrs to ptrs that point to word tokens
-    char **words = malloc(s);
-
-    // Avoid unecessary word counting if not in word or all mode
-    int include_words = (strcmp(mode, AUT) == 0 || strcmp(mode, WOR) == 0) ? 1 : 0;
-    
-    while (cc != -1)
+    if (!strcmp(AUT, mode))
     {
-        c += cc;
-        ++l;
-
-        // count words
-        if (include_words)
+        // Count all
+        while ((linelen = getline(&buf, &size, stream)) != -1)
         {
-            int wc = 0;
-
-            words[wc] = strtok(buf, " \t");
-
-            while (words[wc] != NULL)
-            {
-                words[++wc] = strtok(NULL, " \t");
-            }
-
-            w += wc;
+            nlines += count_lines(buf, linelen);
+            nchars += count_chars(buf, linelen);
+            nwords += count_words(buf, linelen);
         }
 
-        cc = getline(&buf, &s, stream);
+        fprintf(stdout, ALLCOUNT, nlines, nwords, nchars);
     }
-
-    // Output:
-    // line_count
-    // word_count
-    // chsr_count
-    if (strcmp(mode, AUT) == 0) fprintf(stdout, ALLCOUNT, l, w, c);
-    else
+    else if (!strcmp(WOR, mode))
     {
-        if (strcmp(mode, LIN) == 0)
-            fprintf(stdout, OPTIONAL, l);
-        else if (strcmp(mode, WOR) == 0)
-            fprintf(stdout, OPTIONAL, w);
-        else if (strcmp(mode, CHA) == 0)
-            fprintf(stdout, OPTIONAL, c);
+        // count only words
+         while ((linelen = getline(&buf, &size, stream)) != -1)
+        {
+            printf("x");
+            nwords += count_words(buf, linelen);
+
+        }
+
+        fprintf(stdout, OPTIONAL, nwords);
+       
+    }
+    else if (!strcmp(LIN, mode))
+    {
+        // Count only lines
+        while ((linelen = getline(&buf, &size, stream)) != -1)
+        {
+            nlines += count_lines(buf, linelen);
+
+        }
+
+        fprintf(stdout, OPTIONAL, nlines);
+    }
+    else if (!strcmp(CHA, mode))
+    {
+        // count only characters
+        while ((linelen = getline(&buf, &size, stream)) != -1)
+        {
+            nchars += count_chars(buf, linelen);
+
+        }
+
+        fprintf(stdout, OPTIONAL, nchars);
     }
 
     // free stuff
-    free(buf), free(words);
+    free(buf);
 
     return 0;
 }
